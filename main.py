@@ -4,46 +4,35 @@ import plotly.graph_objs as go
 
 # Funzioni di calcolo
 
-def calcola_reddito_netto(ral):
-    # Definiamo gli scaglioni di reddito e le aliquote corrispondenti
-    scaglioni = [15000, 28000, 50000]
-    aliquote = [23, 25, 35, 43]
+def calcola_imposta_media(ral):
+    if ral < 15000:
+        imposta = ral * 0.23
+    elif ral < 28000:
+        imposta = (ral - 15000) * 0.25 + 15000 * 0.23
+    elif ral < 50000:
+        imposta = (ral - 28000) * 0.35 + 13000 * 0.25 + 15000 * 0.23
+    else:  # ral >= 50000
+        imposta = (ral - 50000) * 0.43 + 22000 * 0.35 + 13000 * 0.25 + 15000 * 0.23
+    return imposta / ral
 
-    # Inizializziamo l'imposta totale
-    imposta_totale = 0
-    reddito = ral
-
-    # Calcoliamo l'imposta per ogni scaglione
-    for i in range(len(scaglioni)):
-        if reddito > scaglioni[i]:
-            if i == len(scaglioni) - 1:
-                # Se siamo nell'ultimo scaglione, consideriamo tutto il reddito residuo
-                reddito_soggetto = reddito - scaglioni[i]
-            else:
-                # Altrimenti, consideriamo solo la parte che eccede lo scaglione corrente
-                reddito_soggetto = min(reddito - scaglioni[i], scaglioni[i + 1] - scaglioni[i])
-            imposta_totale += reddito_soggetto * aliquote[i] / 100
-        else:
-            break
-
-    # Per la parte di reddito che eccede l'ultimo scaglione
-    if reddito > scaglioni[-1]:
-        imposta_totale += (reddito - scaglioni[-1]) * aliquote[-1] / 100
-
-    # Calcoliamo il reddito netto sottraendo l'imposta totale
-    reddito_netto = reddito - imposta_totale
-    imposta_media=reddito_netto/ral
-
-    return imposta_media
 
 def calcola_imposta_tfr_fondo(tfr_annuo_fondo, anni):
+    # Aliquota base
     aliquota_base = 15
-    riduzione = min((anni - 15) * 0.3, 6)
-    aliquota = max(aliquota_base - riduzione, 9)
-    return tfr_annuo_fondo * (1 - aliquota / 100)
 
+    # Calcola la riduzione dell'aliquota dopo 15 anni
+    if anni > 15:
+        riduzione_annuale = (anni - 15) * 0.3
+    else:
+        riduzione_annuale = 0
 
+    # Calcola l'aliquota effettiva, con un minimo del 9%
+    aliquota = max(aliquota_base - riduzione_annuale, 9)
 
+    # Calcola l'imposta sul TFR
+    tfr_netto = tfr_annuo_fondo * (1-aliquota / 100)
+
+    return tfr_netto
 
 # Input dell'utente
 st.title("Calcolo del TFR: Azienda vs Fondo Pensione")
@@ -59,67 +48,105 @@ quota_datore_fondo = st.number_input("Quota della RAL accantonata dal datore di 
 quota_dipendente_fondo = st.number_input("Quota della RAL accantonata dal dipendente al fondo pensione (%):",
                                          min_value=0.0, value=1.0, step=0.1)
 quota_obbligazionario = st.number_input("Quota titoli di stato del fondo (%):", min_value=0.0, value=50.0, step=1.0)
-quota_azionario = st.number_input("Quota azioni e eobbligazioni del fondo (%):", min_value=0.0, value=100-quota_obbligazionario, max_value=100-quota_obbligazionario, step=1.0)
+quota_azionario = st.number_input("Quota azioni del fondo (%):", min_value=0.0, value=100-quota_obbligazionario, max_value=100-quota_obbligazionario, step=1.0)
 
 
-#tfr azienda
+# Lista per accumulare i risultati cumulativi
+tfr_netto_cumulativo = []
 
-TFR=ral*percentuale_tfr/100
-TFR_accantonato_netto=calcola_reddito_netto(TFR*12)*TFR
-TFR_rivalutazione=TFR*(inflazione*0.75+1.5)/100
-TFR_rivalutazione_netta=TFR_rivalutazione*(1-0.17)
-TFR_azienda_netto=TFR_accantonato_netto+TFR_rivalutazione_netta
-TFR_azienda_lordo=TFR+TFR_rivalutazione
-data = {
-    "Anno": list(range(1, anni + 1)),
-    "TFR Azienda Lordo Annua": TFR_azienda_lordo,
-    "TFR Azienda Netto Annua": TFR_azienda_netto,
-    "Rivalutazione TFR Annua":TFR_rivalutazione,
-    "Rivalutazione TFR Annua Netta":TFR_rivalutazione_netta
-}
+# Variabile per tenere traccia della somma cumulativa
+somma_cumulativa = 0
 
-df = pd.DataFrame(data)
-df["TFR Azienda Lordo Annua"]=df["TFR Azienda Lordo Annua"].cumsum()+df["Rivalutazione TFR Annua"].cumsum()
-df["TFR Azienda Netto Annua"]=df["TFR Azienda Netto Annua"].cumsum()+df["Rivalutazione TFR Annua Netta"].cumsum()
+# Ciclo per ogni anno
+for anno in range(1, anni + 1):
+    # Definisci i dati per l'anno corrente
+    df = pd.DataFrame({
+        'Anno': [anno],
+        'Quota TFR': [ral * (percentuale_tfr / 100 - 0.005)],
+        'Tasso di rivalutazione': [(inflazione * 0.75 + 1.5) / 100]
+    })
 
+    # Calcola 'Montante', 'Rivalutazione lorda', 'Rivalutazione netta', 'Imposta sulle quote'
+    df['Montante'] = df['Quota TFR'] * (1 + df['Tasso di rivalutazione']) ** (anni - df['Anno'])
+    df['Rivalutazione lorda'] = -df['Quota TFR'] + df['Montante']
+    df['Rivalutazione netta'] = df['Rivalutazione lorda'] * (1 - 0.17)
+    df['Imposta sulle quote'] = calcola_imposta_media(df['Quota TFR'][0] * 12)
+    df['TFR netto'] = df['Rivalutazione netta'] + df['Quota TFR'][0] * (1 - df['Imposta sulle quote'][0])
 
+    # Aggiungi il TFR netto alla somma cumulativa
+    somma_cumulativa += df['TFR netto'][0]
+    tfr_netto_cumulativo.append(somma_cumulativa)
 
-#tfr fondo
-TFR_fondo=ral*(percentuale_tfr+quota_dipendente_fondo+quota_datore_fondo)/100
-TFR_fondo_rivalutazione=TFR_fondo*tasso_rivalutazione_fondo/100
-TFR_fondo_rivalutazione_netta=TFR_fondo_rivalutazione-TFR_fondo_rivalutazione*(quota_obbligazionario*12.5+quota_azionario*20)/10000
+# Creiamo un DataFrame finale con i risultati
+df_finale = pd.DataFrame({
+    'Anno': range(1, anni + 1),
+    'TFR netto cumulativo': tfr_netto_cumulativo
+})
 
-data_2 = {
-    "Anno": list(range(1, anni + 1)),
-    "TFR Fondo Lordo Annua": TFR_fondo,
-    "Rivalutazione TFR Fondo Annua":TFR_fondo_rivalutazione,
-    "Rivalutazione TFR Fondo Annua Netta":TFR_fondo_rivalutazione_netta
-}
+somma_cumulativa_2 = 0
+tfr_netto_cumulativo_2 = []
 
-df_Fondo = pd.DataFrame(data_2)
-anno_max = df_Fondo['Anno'].max()
+for anno in range(1, anni + 1):
+    # Definisci i dati per l'anno corrente
+    df_2 = pd.DataFrame({
+        'Anno': [anno],
+        'Quota TFR': [ral * (percentuale_tfr + quota_datore_fondo + quota_dipendente_fondo) / 100],
+        'Tasso di rivalutazione': [tasso_rivalutazione_fondo / 100]
+    })
 
-# Applica la funzione usando il massimo anno
-df_Fondo['TFR Fondo Netto Annua'] = df_Fondo.apply(
-    lambda row: calcola_imposta_tfr_fondo(row['TFR Fondo Lordo Annua'], anno_max),
-    axis=1
-)
-df_Fondo["TFR Fondo Lordo Annua"]=df_Fondo["TFR Fondo Lordo Annua"].cumsum()+df_Fondo["Rivalutazione TFR Fondo Annua"].cumsum()
-df_Fondo["TFR Fondo Netto Annua"]=df_Fondo["TFR Fondo Netto Annua"].cumsum()+df_Fondo["Rivalutazione TFR Fondo Annua Netta"].cumsum()
+    # Calcolo del montante e della rivalutazione
+    df_2['Montante'] = df_2['Quota TFR'] * (1 + df_2['Tasso di rivalutazione']) ** (anni - anno)
+    df_2['Rivalutazione lorda'] = -df_2['Quota TFR'] + df_2['Montante']
+    df_2['Rivalutazione netta'] = df_2['Rivalutazione lorda'] - df_2['Rivalutazione lorda'] * (
+        quota_azionario / 100 * 0.2 + quota_obbligazionario / 100 * 0.125)
+
+    df_2['TFR netto'] = df_2['Rivalutazione netta'] + calcola_imposta_tfr_fondo(df_2['Quota TFR'], anni)
+
+    # Stampa per debug
+    print(f"Anno: {anno}, TFR netto: {df_2['TFR netto'][0]}")
+
+    # Aggiungi il TFR netto alla somma cumulativa
+    somma_cumulativa_2 += df_2['TFR netto'][0]
+    tfr_netto_cumulativo_2.append(somma_cumulativa_2)
+
+# Creiamo un DataFrame finale con i risultati
+df_finale_2 = pd.DataFrame({
+    'Anno': range(1, anni + 1),
+    'TFR netto cumulativo': tfr_netto_cumulativo_2
+})
+
 
 
 # Grafico con Plotly
-st.subheader("Grafico dell'andamento del TFR")
+tfr_fondo_totale = df_finale_2['TFR netto cumulativo'].max()
+tfr_totale = df_finale['TFR netto cumulativo'].max()
+
+# Creazione del grafico a barre con Plotly
+fig = go.Figure(data=[
+    go.Bar(name='Fondo pensione', x=['Fondo pensione'], y=[tfr_fondo_totale]),
+    go.Bar(name='TFR azienda', x=['TFR azienda'], y=[tfr_totale])
+])
+
+# Aggiornamento del layout del grafico
+fig.update_layout(
+    xaxis_title='Opzioni',
+    yaxis_title='Euro',
+    barmode='group'
+)
+
+# Utilizzo di Streamlit per visualizzare il grafico
+st.title('Grafico a Barre del TFR Netto')
+st.plotly_chart(fig)
+
+# Grafico con Plotly
+st.subheader("Grafico dell'andamento del TFR netto")
 fig = go.Figure()
 
-fig.add_trace(go.Scatter(x=df["Anno"], y=df["TFR Azienda Lordo Annua"], mode='lines+markers',
-                         name="TFR Azienda Lordo Accumulato", line=dict(color='blue')))
-fig.add_trace(go.Scatter(x=df["Anno"], y=df["TFR Azienda Netto Annua"], mode='lines+markers',
-                         name="TFR Azienda Netto Accumulato", line=dict(color='cyan')))
-fig.add_trace(go.Scatter(x=df_Fondo["Anno"], y=df_Fondo["TFR Fondo Lordo Annua"], mode='lines+markers',
-                         name="TFR Fondo Lordo Accumulato", line=dict(color='red')))
-fig.add_trace(go.Scatter(x=df_Fondo["Anno"], y=df_Fondo["TFR Fondo Netto Annua"], mode='lines+markers',
-                         name="TFR Fondo Netto Accumulato", line=dict(color='orange')))
+
+fig.add_trace(go.Scatter(x=df_finale_2["Anno"], y=df_finale_2['TFR netto cumulativo'], mode='lines+markers',
+                         name="TFR Fondo Pensione", line=dict(color='red')))
+fig.add_trace(go.Scatter(x=df_finale["Anno"], y=df_finale['TFR netto cumulativo'], mode='lines+markers',
+                         name="TFR Azienda", line=dict(color='orange')))
 
 fig.update_layout(
     title="Andamento del TFR Azienda vs Fondo Pensione",
