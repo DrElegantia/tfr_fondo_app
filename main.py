@@ -37,6 +37,15 @@ def calcola_imposta_tfr_fondo(tfr_annuo_fondo, anni):
 # Input dell'utente
 st.title("Calcolo del TFR: Azienda vs Fondo Pensione")
 
+
+st.warning("""
+**⚠️ Attenzione:**
+
+- **Consultazione con un esperto legale:** Per garantire che tutti gli aspetti normativi siano rispettati, ti consigliamo vivamente di consultare un esperto in diritto del lavoro e previdenza sociale.
+
+- **Documentazione e avvisi legali:** Ricorda che i calcoli forniti dall'applicazione sono solo indicativi. La normativa fiscale può cambiare, quindi è importante leggere attentamente il codice sorgente disponibile qui https://github.com/DrElegantia/tfr_fondo_app/blob/main/main.py . Prima di prendere decisioni basate su questi calcoli, ti consigliamo di parlare con un consulente fiscale o finanziario.
+""")
+
 ral = st.number_input("Inserisci la tua RAL (in Euro):", min_value=0.0, value=35000.0, step=1000.0)
 anni = st.number_input("Inserisci gli anni di lavoro:", min_value=1, value=30)
 percentuale_tfr = st.number_input("Percentuale RAL accantonata a TFR:", min_value=0.0, value=6.91, step=0.01)
