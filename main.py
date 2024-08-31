@@ -111,8 +111,7 @@ for anno in range(1, anni + 1):
 
     df_2['TFR netto'] = df_2['Rivalutazione netta'] + calcola_imposta_tfr_fondo(df_2['Quota TFR'], anni)
 
-    # Stampa per debug
-    print(f"Anno: {anno}, TFR netto: {df_2['TFR netto'][0]}")
+
 
     # Aggiungi il TFR netto alla somma cumulativa
     somma_cumulativa_2 += df_2['TFR netto'][0]
