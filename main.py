@@ -47,8 +47,8 @@ quota_datore_fondo = st.number_input("Quota della RAL accantonata dal datore di 
                                      min_value=0.0, value=1.0, step=0.1)
 quota_dipendente_fondo = st.number_input("Quota della RAL accantonata dal dipendente al fondo pensione (%):",
                                          min_value=0.0, value=1.0, step=0.1)
-quota_obbligazionario = st.number_input("Quota titoli di stato del fondo (%):", min_value=0.0, value=50.0, step=1.0)
-quota_azionario = st.number_input("Quota azioni del fondo (%):", min_value=0.0, value=100-quota_obbligazionario, max_value=100-quota_obbligazionario, step=1.0)
+quota_obbligazionario = st.number_input("Quota titoli di stato del fondo (%) (tassazione al 12.5%):", min_value=0.0, value=50.0, step=1.0)
+quota_azionario = st.number_input("Quota azioni del fondo (%) (tassazione al 20%):", min_value=0.0, value=100-quota_obbligazionario, max_value=100-quota_obbligazionario, step=1.0)
 
 
 # Lista per accumulare i risultati cumulativi
