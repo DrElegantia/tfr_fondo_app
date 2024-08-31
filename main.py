@@ -71,7 +71,7 @@ for anno in range(1, anni + 1):
     # Definisci i dati per l'anno corrente
     df = pd.DataFrame({
         'Anno': [anno],
-        'Quota TFR': [ral * (percentuale_tfr / 100 - 0.005)],
+        'Quota TFR': [ral * (percentuale_tfr / 100)],
         'Tasso di rivalutazione': [(inflazione * 0.75 + 1.5) / 100]
     })
 
